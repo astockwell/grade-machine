@@ -1,0 +1,29 @@
+.input-group {
+	margin-bottom: 10px;
+}
+.get_grades {
+	margin-bottom: 10px;
+}
+.grade-result {
+	margin-top: 20px;
+}
+p.alert {
+	padding: 6px 15px;
+}
+h3.label {
+	font-size: 24px;
+	display: block;
+	color: inherit;
+	padding: .4em .6em .5em;
+}
+
+@media (min-width: 768px) {
+	.assignment {
+		float: left;
+		width: 50%;
+		padding-right: 5%;
+	}
+	.assignment:nth-child(2n+1) {
+		clear: both;
+	}
+}
