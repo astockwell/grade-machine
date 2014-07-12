@@ -90,7 +90,10 @@
 						</form>
 
 						<p class="warning" ng-if="grades.error">
-							There was an error: {{`{{grades.error}}`}}
+							There was an error: {{grades.error}}
+						</p>
+						<p class="text-muted">
+							<em><strong>To Demo: </strong>Affiliate ID: 123, Last Name: smith</em>
 						</p>
 
 					</div>
@@ -101,11 +104,11 @@
 				<div class="col-md-12">
 					<div ng-if="grades.LastName">
 						<div class="well clearfix">
-							<h2>GRA294 Fall '13 Grades for {{`{{grades.FirstName}}`}} {{`{{grades.LastName}}`}}:</h2>
-							<h3 class="label label-info"><strong>{{`{{grades.CurrentGrade}}`}}</strong></h3>
+							<h2>GRA294 Fall '13 Grades for {{grades.FirstName}} {{grades.LastName}}:</h2>
+							<h3 class="label label-info"><strong>{{grades.CurrentGrade}}</strong></h3>
 							<div class="assignment" ng:repeat="Assignment in grades.Assignments">
-								<h3>{{`{{Assignment.Name}}`}}:</h3>
-								<p ng-if="Assignment.Score && Assignment.Total">Score: {{`{{Assignment.Score}}`}} of {{`{{Assignment.Total}}`}}</p>
+								<h3>{{Assignment.Name}}:</h3>
+								<p ng-if="Assignment.Score && Assignment.Total">Score: {{Assignment.Score}} of {{Assignment.Total}}</p>
 								<div ng-bind-html="Assignment.Comments"></div>
 							</div>
 						</div>
