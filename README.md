@@ -13,6 +13,7 @@ The project was an excercise in building a simple, performant app from scratch t
 
 ### Go tid-bits
 
+- Built the json backend server from only Golang standard libs
 - Grades/roster held in in-memory struct and seeded via a json file (writable and multi-tenant backends were out of scope)
 - Template views and grades json seed file used automatic hot-reloading
 - Request "authentication" via a matching of Student ID and Last Name
