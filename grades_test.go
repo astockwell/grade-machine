@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestHandlers(t *testing.T) {
+func TestGradesHandler(t *testing.T) {
 	tests := []struct {
 		Desc    string
 		Handler func(http.ResponseWriter, *http.Request)
@@ -97,7 +97,7 @@ func TestHandlers(t *testing.T) {
 		}
 		req, err := http.NewRequest(test.Method, test.Path, bytes.NewReader(body))
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("Test request could not be made", err)
 		}
 
 		test.Handler(record, req)
@@ -110,6 +110,5 @@ func TestHandlers(t *testing.T) {
 				t.Errorf("%s: %q ~ /%s/ = %v, want %v", test.Desc, record.Body, re, got, match)
 			}
 		}
-		// t.Errorf("%s", record)
 	}
 }
