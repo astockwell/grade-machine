@@ -1,11 +1,11 @@
 package main
 
 import (
-	"io"
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
-	"strings"
 	"testing"
 )
 
@@ -15,7 +15,7 @@ func TestHandlers(t *testing.T) {
 		Handler func(http.ResponseWriter, *http.Request)
 		Method  string
 		Path    string
-		Body    io.Reader
+		Body    map[string]interface{}
 		Status  int
 		Match   map[string]bool
 	}{
@@ -24,8 +24,8 @@ func TestHandlers(t *testing.T) {
 			Handler: grades,
 			Method:  "POST",
 			Path:    "/grades",
-			Body:    strings.NewReader(""),
-			Status:  http.StatusOK,
+			// Body:    map[string]interface{}{},
+			Status: http.StatusOK,
 			Match: map[string]bool{
 				"error": true,
 				"Fields missing from submission": true,
@@ -35,8 +35,11 @@ func TestHandlers(t *testing.T) {
 			Handler: grades,
 			Method:  "POST",
 			Path:    "/grades",
-			Body:    strings.NewReader(`{"Affiliate":"987","LastName":"smith"}`),
-			Status:  http.StatusOK,
+			Body: map[string]interface{}{
+				"Affiliate": "987",
+				"LastName":  "smith",
+			},
+			Status: http.StatusOK,
 			Match: map[string]bool{
 				"error": true,
 				"No match for ID and last name": true,
@@ -46,8 +49,11 @@ func TestHandlers(t *testing.T) {
 			Handler: grades,
 			Method:  "POST",
 			Path:    "/grades",
-			Body:    strings.NewReader(`{"Affiliate":"123","LastName":"jones"}`),
-			Status:  http.StatusOK,
+			Body: map[string]interface{}{
+				"Affiliate": "123",
+				"LastName":  "jones",
+			},
+			Status: http.StatusOK,
 			Match: map[string]bool{
 				"error": true,
 				"No match for ID and last name": true,
@@ -57,8 +63,11 @@ func TestHandlers(t *testing.T) {
 			Handler: grades,
 			Method:  "POST",
 			Path:    "/grades",
-			Body:    strings.NewReader(`{"Affiliate":"456","LastName":"wilson"}`),
-			Status:  http.StatusOK,
+			Body: map[string]interface{}{
+				"Affiliate": "456",
+				"LastName":  "wilson",
+			},
+			Status: http.StatusOK,
 			Match: map[string]bool{
 				"error": true,
 				"No match for ID and last name": true,
@@ -68,19 +77,11 @@ func TestHandlers(t *testing.T) {
 			Handler: grades,
 			Method:  "POST",
 			Path:    "/grades",
-			Body:    strings.NewReader(`{"Affiliate":"123","LastName":"smith"}`),
-			Status:  http.StatusOK,
-			Match: map[string]bool{
-				"FirstName":    true,
-				"CurrentGrade": true,
+			Body: map[string]interface{}{
+				"Affiliate": "123",
+				"LastName":  "smith",
 			},
-		}, {
-			Desc:    "MARSHALLED correct submission for: smith",
-			Handler: grades,
-			Method:  "POST",
-			Path:    "/grades",
-			Body:    strings.NewReader(`{"Affiliate":"123","LastName":"smith"}`),
-			Status:  http.StatusOK,
+			Status: http.StatusOK,
 			Match: map[string]bool{
 				"FirstName":    true,
 				"CurrentGrade": true,
@@ -90,7 +91,11 @@ func TestHandlers(t *testing.T) {
 
 	for _, test := range tests {
 		record := httptest.NewRecorder()
-		req, err := http.NewRequest(test.Method, test.Path, test.Body)
+		body, err := json.Marshal(test.Body)
+		if err != nil {
+			t.Fatal("Test json could not be Marshal'ed", err)
+		}
+		req, err := http.NewRequest(test.Method, test.Path, bytes.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
