@@ -20,6 +20,16 @@ func TestGradesHandler(t *testing.T) {
 		Match   map[string]bool
 	}{
 		{
+			Desc:    "Template: index.html",
+			Handler: index,
+			Method:  "GET",
+			Path:    "/",
+			// Body:    map[string]interface{}{},
+			Status: http.StatusOK,
+			Match: map[string]bool{
+				"<!DOCTYPE html>": true,
+			},
+		}, {
 			Desc:    "blank submission",
 			Handler: grades,
 			Method:  "POST",

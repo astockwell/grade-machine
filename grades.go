@@ -34,6 +34,11 @@ type Roster struct {
 	LastModified os.FileInfo
 }
 
+const (
+	indexTemplatePath string = "views/index.html"
+	rosterFilePath    string = "latest_grades.json"
+)
+
 var (
 	currentRoster     Roster
 	idMap             map[string]string
@@ -43,50 +48,6 @@ var (
 
 func serveError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
-}
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	// Has the index file changed?
-	templatesCurrent, err := os.Lstat("views/index.html")
-	if err != nil {
-		panic(err)
-	}
-	if templatesCurrent.ModTime() != templatesModified.ModTime() {
-		fmt.Println("hot dang, index's differnt")
-		// Reload template(s)
-		if templates, err = template.ParseFiles(
-			"views/index.html",
-		); err != nil {
-			panic(err)
-		}
-		templatesModified = templatesCurrent
-	}
-
-	// Has the roster file changed?
-	rosterCurrent, err := os.Lstat("./latest_grades.json")
-	if err != nil {
-		panic(err)
-	}
-	if rosterCurrent.ModTime() != currentRoster.LastModified.ModTime() {
-		fmt.Println("hot dang, roster's differnt")
-		// Reload roster
-		file, err := ioutil.ReadFile("./latest_grades.json")
-		if err != nil {
-			fmt.Printf("File error: %v\n", err)
-			panic(err)
-		}
-		json.Unmarshal(file, &currentRoster)
-		idMap = make(map[string]string, len(currentRoster.Students))
-		for _, student := range currentRoster.Students {
-			idMap[student.Affiliate] = strings.ToLower(student.LastName)
-		}
-		currentRoster.LastModified = rosterCurrent
-	}
-
-	// Serve it!
-	if err := templates.ExecuteTemplate(w, "index.html", r.URL.Path[1:]); err != nil {
-		serveError(w, err)
-	}
 }
 
 func grades(w http.ResponseWriter, r *http.Request) {
@@ -134,38 +95,89 @@ func grades(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func init() {
-	var err error
-
-	// Parse template(s)
-	if templates, err = template.New("").ParseFiles(
-		"views/index.html",
-	); err != nil {
-		panic(err)
-	}
-
-	// Remember it's last modified time/size
-	templatesModified, err = os.Lstat("views/index.html")
+func ReloadTemplates() {
+	// Has the index file changed?
+	templatesCurrent, err := os.Lstat(indexTemplatePath)
 	if err != nil {
 		panic(err)
 	}
+	if templatesCurrent.ModTime() != templatesModified.ModTime() {
+		fmt.Println("hot dang, index's differn't")
+		// Reload template(s)
+		if templates, err = template.ParseFiles(
+			indexTemplatePath,
+		); err != nil {
+			panic(err)
+		}
+		templatesModified = templatesCurrent
+	}
+}
 
-	// Import class information
-	file, err := ioutil.ReadFile("./latest_grades.json")
+func ReloadRoster() {
+	// Has the roster file changed?
+	rosterCurrent, err := os.Lstat(rosterFilePath)
+	if err != nil {
+		panic(err)
+	}
+	if currentRoster.LastModified == nil || rosterCurrent.ModTime() != currentRoster.LastModified.ModTime() {
+		fmt.Println("hot dang, roster's differn't")
+
+		LoadRoster()
+
+		currentRoster.LastModified = rosterCurrent
+	}
+}
+
+func LoadRoster() {
+	file, err := ioutil.ReadFile(rosterFilePath)
 	if err != nil {
 		fmt.Printf("File error: %v\n", err)
 		panic(err)
 	}
 	json.Unmarshal(file, &currentRoster)
 
-	// Create authenticaion lookup
+	SeedIdMap()
+}
+
+func SeedIdMap() {
 	idMap = make(map[string]string, len(currentRoster.Students))
 	for _, student := range currentRoster.Students {
 		idMap[student.Affiliate] = strings.ToLower(student.LastName)
 	}
+}
+
+func refresh(w http.ResponseWriter, r *http.Request) {
+	ReloadTemplates()
+	ReloadRoster()
+	http.Redirect(w, r, "/", 302)
+}
+
+func index(w http.ResponseWriter, r *http.Request) {
+	if err := templates.ExecuteTemplate(w, "index.html", r.URL.Path[1:]); err != nil {
+		serveError(w, err)
+	}
+}
+
+func init() {
+	var err error
+
+	// Parse template(s)
+	templates, err = template.New("").ParseFiles(indexTemplatePath)
+	if err != nil {
+		panic(err)
+	}
 
 	// Remember it's last modified time/size
-	currentRoster.LastModified, err = os.Lstat("./latest_grades.json")
+	templatesModified, err = os.Lstat(indexTemplatePath)
+	if err != nil {
+		panic(err)
+	}
+
+	// Import class information
+	LoadRoster()
+
+	// Remember it's last modified time/size
+	currentRoster.LastModified, err = os.Lstat(rosterFilePath)
 	if err != nil {
 		panic(err)
 	}
@@ -178,6 +190,7 @@ func main() {
 	// serve CSS static assets first
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("assets"))))
 	http.HandleFunc("/grades", grades)
-	http.HandleFunc("/", handler)
+	http.HandleFunc("/refresh", refresh)
+	http.HandleFunc("/", index)
 	http.ListenAndServe(":8080", nil)
 }
