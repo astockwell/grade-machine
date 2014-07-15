@@ -85,6 +85,7 @@ func grades(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, string(j))
 		} else {
 			fmt.Fprintf(w, "{\"error\":\"No match for ID and last name\"}")
+			return
 		}
 	} else {
 		// Use for API call:

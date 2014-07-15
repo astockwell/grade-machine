@@ -34,7 +34,7 @@
 						.post('/grades', $scope.gradeReq)
 						.success(function(data, status, headers, config) {
 							// console.log(data);
-							data.Assignments.reverse(); // Bring newest to the top
+							if (data.Assignments) data.Assignments.reverse(); // Bring newest to the top
 							$scope.grades = data;
 						});
 				};
