@@ -96,6 +96,20 @@ func TestGradesHandler(t *testing.T) {
 				"FirstName":    true,
 				"CurrentGrade": true,
 			},
+		}, {
+			Desc:    "odd capitalization for: sMiTh",
+			Handler: grades,
+			Method:  "POST",
+			Path:    "/grades",
+			Body: map[string]interface{}{
+				"Affiliate": "123",
+				"LastName":  "sMiTh",
+			},
+			Status: http.StatusOK,
+			Match: map[string]bool{
+				"FirstName":    true,
+				"CurrentGrade": true,
+			},
 		},
 	}
 

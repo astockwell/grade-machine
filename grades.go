@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 )
 
 // Struct to JSON
@@ -30,8 +31,47 @@ type Student struct {
 }
 
 type Roster struct {
-	Students     []Student
-	LastModified os.FileInfo
+	Students []Student
+}
+
+type Gradebook struct {
+	roster       *Roster
+	idMap        map[string]string
+	lastModified os.FileInfo
+	mutex        sync.RWMutex
+}
+
+func (gb *Gradebook) load() {
+	rTimeStamp, err := os.Lstat(rosterFilePath)
+	if err != nil {
+		panic(err)
+	}
+	if gb.lastModified == nil || rTimeStamp.ModTime() != gb.lastModified.ModTime() {
+		if gb.lastModified != nil {
+			fmt.Println("hot dang, roster's differn't")
+		}
+
+		gb.mutex.Lock()
+		defer gb.mutex.Unlock()
+
+		file, err := ioutil.ReadFile(rosterFilePath)
+		if err != nil {
+			fmt.Printf("File error: %v\n", err)
+			panic(err)
+		}
+		json.Unmarshal(file, &gb.roster)
+
+		gb.makeIdMap()
+
+		gb.lastModified = rTimeStamp
+	}
+}
+
+func (gb *Gradebook) makeIdMap() {
+	gb.idMap = make(map[string]string, len(gb.roster.Students))
+	for _, student := range gb.roster.Students {
+		gb.idMap[student.Affiliate] = strings.ToLower(student.LastName)
+	}
 }
 
 const (
@@ -40,8 +80,7 @@ const (
 )
 
 var (
-	currentRoster     Roster
-	idMap             map[string]string
+	currentGradebook  Gradebook
 	templates         *template.Template
 	templatesModified os.FileInfo
 )
@@ -69,16 +108,19 @@ func grades(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.ContentLength > 0 && len(s.LastName) > 0 {
-		if strings.ToLower(s.LastName) == idMap[s.Affiliate] {
+		currentGradebook.mutex.RLock()
+		defer currentGradebook.mutex.RUnlock()
+
+		if strings.ToLower(s.LastName) == currentGradebook.idMap[s.Affiliate] {
 			var index int
-			for i, b := range currentRoster.Students {
+			for i, b := range currentGradebook.roster.Students {
 				if b.Affiliate == s.Affiliate {
 					index = i
 					break
 				}
 			}
 
-			j, err := json.Marshal(currentRoster.Students[index])
+			j, err := json.Marshal(currentGradebook.roster.Students[index])
 			if err != nil {
 				panic(err)
 			}
@@ -114,42 +156,9 @@ func ReloadTemplates() {
 	}
 }
 
-func ReloadRoster() {
-	// Has the roster file changed?
-	rosterCurrent, err := os.Lstat(rosterFilePath)
-	if err != nil {
-		panic(err)
-	}
-	if currentRoster.LastModified == nil || rosterCurrent.ModTime() != currentRoster.LastModified.ModTime() {
-		fmt.Println("hot dang, roster's differn't")
-
-		LoadRoster()
-
-		currentRoster.LastModified = rosterCurrent
-	}
-}
-
-func LoadRoster() {
-	file, err := ioutil.ReadFile(rosterFilePath)
-	if err != nil {
-		fmt.Printf("File error: %v\n", err)
-		panic(err)
-	}
-	json.Unmarshal(file, &currentRoster)
-
-	SeedIdMap()
-}
-
-func SeedIdMap() {
-	idMap = make(map[string]string, len(currentRoster.Students))
-	for _, student := range currentRoster.Students {
-		idMap[student.Affiliate] = strings.ToLower(student.LastName)
-	}
-}
-
 func refresh(w http.ResponseWriter, r *http.Request) {
 	ReloadTemplates()
-	ReloadRoster()
+	currentGradebook.load()
 	http.Redirect(w, r, "/", 302)
 }
 
@@ -174,14 +183,7 @@ func init() {
 		panic(err)
 	}
 
-	// Import class information
-	LoadRoster()
-
-	// Remember it's last modified time/size
-	currentRoster.LastModified, err = os.Lstat(rosterFilePath)
-	if err != nil {
-		panic(err)
-	}
+	currentGradebook.load()
 
 	// All good?
 	fmt.Println(":)")
